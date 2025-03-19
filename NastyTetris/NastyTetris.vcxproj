@@ -71,8 +71,8 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>C:\Program Files\SDL3-3.2.8\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Program Files\SDL3-3.2.8\lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Program Files\SDL3-3.2.8\include;C:\Program Files\SDL3_image\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Program Files\SDL3_image\lib\x64;C:\Program Files\SDL3-3.2.8\lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -133,6 +133,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="01_hello_SDL\01_hello_SDL.cpp" />
+    <ClCompile Include="LTexture.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="LTexture.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
