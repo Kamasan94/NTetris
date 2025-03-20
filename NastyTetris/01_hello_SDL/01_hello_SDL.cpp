@@ -3,18 +3,19 @@ and may not be redistributed without written permission.*/
 
 /* Headers */
 //Using SDL and STL string
-#include <SDL3/SDL.h>
-#include <SDL3/SDL_main.h>
-#include <SDL3_image/SDL_image.h>
-#include <string>
-#include "../LTexture.h"
+//Using SDL and standard IO
+#include <SDL.h>
+#include <stdio.h>
+
+//Screen dimension constants
+const int SCREEN_WIDTH = 640;
+const int SCREEN_HEIGHT = 480;
 
 /* Constants */
 //Screen dimension constants
 constexpr int kScreenWidth{ 640 };
 constexpr int kScreenHeight{ 480 };
 
-/* Function Prototypes */
 //Starts up SDL and creates window
 bool init();
 
@@ -26,46 +27,38 @@ void close();
 
 /* Global Variables */
 //The window we'll be rendering to
-SDL_Window* gWindow{ nullptr };
+SDL_Window* gWindow = NULL;
 
 //The surface contained by the window
-SDL_Renderer* gRenderer{ nullptr };
+SDL_Surface* gScreenSurface = NULL;
 
-//The PNG image we will render
-LTexture gPngTexture;
+//The image we will load and show on the screen
+SDL_Surface* gHelloWorld = NULL;
 
-/* Function Implementations */
 bool init()
 {
 	//Initialization flag
-	bool success{ true };
-
-	
+	bool success = true;
 
 	//Initialize SDL
-	if (!SDL_Init(SDL_INIT_VIDEO))
+	if (SDL_Init(SDL_INIT_VIDEO) < 0)
 	{
-		SDL_Log("SDL could not initialize! SDL error: %s\n", SDL_GetError());
+		printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
 		success = false;
 	}
 	else
 	{
 		//Create window
-	
-		if (!SDL_CreateWindowAndRenderer("SDL3 Tutorial: Hello SDL3", kScreenWidth, kScreenHeight, 0, &gWindow, &gRenderer))
+		gWindow = SDL_CreateWindow("SDL Tutorial", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
+		if (gWindow == NULL)
 		{
-			SDL_Log("Window could not be created! SDL error: %s\n", SDL_GetError());
+			printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
 			success = false;
 		}
 		else
 		{
-			//Initialize PNG loading
-			int imgFlags = 2;
-			if (!(IMG_Init(imgFlags) & imgFlags))
-			{
-				SDL_Log("SDL_image could not initialize! SDL_image error: %s\n", SDL_GetError());
-				success = false;
-			}
+			//Get window surface
+			gScreenSurface = SDL_GetWindowSurface(gWindow);
 		}
 	}
 
@@ -74,13 +67,15 @@ bool init()
 
 bool loadMedia()
 {
-	//File loading flag
-	bool success{ true };
-    success = gPngTexture.loadFromFile("02-textures-and-extension-libraries/loaded.png");
+	//Loading success flag
+	bool success = true;
+
 	//Load splash image
-	if ( !success)
+	gHelloWorld = SDL_LoadBMP("/hello_world.bmp");
+	if (gHelloWorld == NULL)
 	{
-		SDL_Log("Unable to load png image!\n");
+		printf("Unable to load image %s! SDL Error: %s\n", "/hello_world.bmp", SDL_GetError());
+		success = false;
 	}
 
 	return success;
@@ -88,77 +83,44 @@ bool loadMedia()
 
 void close()
 {
-	//Clean up texture
-	gPngTexture.destroy();
+	//Deallocate surface
+	SDL_FreeSurface(gHelloWorld);
+	gHelloWorld = NULL;
 
 	//Destroy window
-	SDL_DestroyRenderer(gRenderer);
-	gRenderer = nullptr;
 	SDL_DestroyWindow(gWindow);
-	gWindow = nullptr;
+	gWindow = NULL;
 
 	//Quit SDL subsystems
-	IMG_Quit();
 	SDL_Quit();
 }
 
 int main(int argc, char* args[])
 {
-    //Final exit code
-    int exitCode{ 0 };
+	if (!init())
+	{
+		printf("Failed to initialize!\n");
+	}
+	else
+	{
+		//Load Media
+		if (!loadMedia())
+		{
+			printf("Failed to load media!\n");
+		}
+		else
+		{
+			//Apply the image
+			SDL_BlitSurface(gHelloWorld, NULL, gScreenSurface, NULL);
+			//Update the surface
+			SDL_UpdateWindowSurface(gWindow);
 
-    //Initialize
-    if (!init())
-    {
-        SDL_Log("Unable to initialize program!\n");
-        exitCode = 1;
-    }
-    else
-    {
-        //Load media
-        if (!loadMedia())
-        {
-            SDL_Log("Unable to load media!\n");
-            exitCode = 2;
-        }
-        else
-        {
-            //The quit flag
-            bool quit{ false };
+			//Hack to get window to stay up
+			SDL_Event e; bool quit = false; while (quit == false) { while (SDL_PollEvent(&e)) { if (e.type == SDL_QUIT) quit = true; } }
+		}
+	}
+	//Free resources and close SDL
+	close();
 
-            //The event data
-            SDL_Event e;
-            SDL_zero(e);
-
-            //The main loop
-            while (quit == false)
-            {
-                //Get event data
-                while (SDL_PollEvent(&e))
-                {
-                    //If event is quit type
-                    if (e.type == SDL_EVENT_QUIT)
-                    {
-                        //End the main loop
-                        quit = true;
-                    }
-                }
-
-                //Fill the background white
-                SDL_SetRenderDrawColor(gRenderer, 0xFF, 0xFF, 0xFF, 0xFF);
-                SDL_RenderClear(gRenderer);
-
-                //Render image on screen
-                gPngTexture.render(0.f, 0.f);
-
-                //Update screen
-                SDL_RenderPresent(gRenderer);
-            }
-        }
-    }
-
-    //Clean up
-    close();
-
-    return exitCode;
+	return 0;
 }
