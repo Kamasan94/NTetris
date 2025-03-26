@@ -71,6 +71,139 @@ SDL_Texture* gTexture = NULL;
 
 /************************************/
 
+//Texture wrapper class
+class LTexture
+{
+public:
+	//Initializes variables
+	LTexture();
+
+	//Deallocates memory
+	~LTexture();
+
+	//Loads image ad specified path
+	bool loadFromFile(std::string path);
+
+	//Deallocates texture
+	void free();
+
+	//Renders texture at given point
+	void render(int x, int y, SDL_Rect* clip = NULL);
+
+	//Gets image dimensions
+	int getWidth();
+	int getHeight();
+
+private:
+	//The actual hardware texture
+	SDL_Texture* mTexture;
+
+	//Image dimensions
+	int mWidth;
+	int mHeight;
+};
+
+//Scene textures
+LTexture gFooTexture;
+LTexture gBackgroundTexture;
+
+LTexture::LTexture()
+{
+	//Initialize
+	mTexture = NULL;
+	mWidth = 0;
+	mHeight = 0;
+}
+
+LTexture::~LTexture()
+{
+	//Deallocate
+	free();
+}
+
+void LTexture::free()
+{
+	//Free texture if it exists
+	if (mTexture != NULL)
+	{
+		SDL_DestroyTexture(mTexture);
+		mTexture = NULL;
+		mWidth = 0;
+		mHeight = 0;
+	}
+}
+
+void LTexture::render(int x, int y, SDL_Rect* clip)
+{
+	//Set rendering space and render to screen
+	SDL_Rect renderQuaad = { x, y, mWidth, mHeight };
+
+	//Set clip rendering dimensions
+	if (clip != NULL)
+	{
+		renderQuaad.w = clip->w;
+		renderQuaad.h = clip->h;
+	}
+
+	//Render to screen
+	SDL_RenderCopy(gRenderer, mTexture, clip, &renderQuaad);
+}
+
+int LTexture::getWidth()
+{
+	return mWidth;
+}
+
+int LTexture::getHeight()
+{
+	return mHeight;
+}
+
+bool LTexture::loadFromFile(std::string path)
+{
+	//Get rid of preexisting texture
+	free();
+
+	//The final texture
+	SDL_Texture* newTexture = NULL;
+
+	//Load image at a specified path
+	SDL_Surface* loadedSurface = IMG_Load(path.c_str());
+	if (loadedSurface == NULL)
+	{
+		printf("Unable to load image %s\n!, SDL_Image error:", path.c_str(), SDL_GetError());
+	}
+	else
+	{
+		//Color key image
+		SDL_SetColorKey(loadedSurface, SDL_TRUE, SDL_MapRGB(loadedSurface->format, 0, 0xFF, 0xFF));
+
+		//Create texture form surface pixels
+		newTexture = SDL_CreateTextureFromSurface(gRenderer, loadedSurface);
+		if (newTexture == NULL)
+		{
+			printf("Unable to create texture form %s! SDL_Error: %s\n", path.c_str(), SDL_GetError());
+		}
+		else
+		{
+			//Get image dimensions
+			mWidth = loadedSurface->w;
+			mHeight = loadedSurface->h;
+		}
+
+		//Get rid of old loaded surface
+		SDL_FreeSurface(loadedSurface);
+	}
+
+	//Return success
+	mTexture = newTexture;
+	return mTexture != NULL;
+}
+
+
+//Scene sprites
+SDL_Rect gSpriteClips[4];
+LTexture gSpriteSheetTexture;
 
 
 
@@ -229,12 +362,61 @@ bool loadMedia()
 	*/
 
 	//Load PNG texture
-	gTexture = loadTexture("assets/textures/texture.png");
+	/*gTexture = loadTexture("assets/textures/texture.png");
 	if (gTexture == NULL)
 	{
 		printf("Failed to load teture image!\n");
 		success = false;
+	}*/
+
+
+	//Load Foo texture
+	//if (!gFooTexture.loadFromFile("assets/images/foo.png"))
+	//{
+	//	printf("Failed to load Foo texture image!\n");
+	//	success = false;
+	//}
+
+	////Load bacground texture
+	//if (!gBackgroundTexture.loadFromFile("assets/images/background.png"))
+	//{
+	//	printf("Failed to load background texture image!\n");
+	//	success = false;
+	//}
+
+	//Load sprite sheet texture
+	if (!gSpriteSheetTexture.loadFromFile("assets/images/dots.png"))
+	{
+		printf("Failed to load sprite sheet texture!\n");
+		success = false;
 	}
+	else
+	{
+		//Set top left sprite
+		gSpriteClips[0].x = 0;
+		gSpriteClips[0].y = 0;
+		gSpriteClips[0].w = 100;
+		gSpriteClips[0].h = 100;
+
+		//Set top right sprite
+		gSpriteClips[1].x = 100;
+		gSpriteClips[1].y = 0;
+		gSpriteClips[1].w = 100;
+		gSpriteClips[1].h = 100;
+
+		//Set bottom left sprite
+		gSpriteClips[2].x = 0;
+		gSpriteClips[2].y = 100;
+		gSpriteClips[2].w = 100;
+		gSpriteClips[2].h = 100;
+
+		//Set bottom right sprite
+		gSpriteClips[3].x = 100;
+		gSpriteClips[3].y = 100;
+		gSpriteClips[3].w = 100;
+		gSpriteClips[3].h = 100;
+	}
+
 
 	return success;
 }
@@ -242,6 +424,8 @@ bool loadMedia()
 void close()
 {
 	//Free loaded image
+	gFooTexture.free();
+	gBackgroundTexture.free();
 	SDL_DestroyTexture(gTexture);
 	gTexture = NULL;
 
@@ -326,10 +510,83 @@ int main(int argc, char* args[])
 				} 
 
 				//Clear screen
+				SDL_SetRenderDrawColor(gRenderer, 0xFF, 0xFF, 0xFF, 0xFF);
 				SDL_RenderClear(gRenderer);
 
 				//Render texture screen
-				SDL_RenderCopy(gRenderer, gTexture, NULL, NULL);
+				//SDL_RenderCopy(gRenderer, gTexture, NULL, NULL);
+
+				//Render red filled quad
+				//SDL_Rect fillRect = { SCREEN_WIDTH / 4, SCREEN_HEIGHT / 4, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 };
+				//SDL_SetRenderDrawColor(gRenderer, 0xFF, 0x00, 0x00, 0xFF);
+				//SDL_RenderFillRect(gRenderer, &fillRect);
+
+				////Render green outlined quad
+				//SDL_Rect outlineRect = { SCREEN_WIDTH / 6, SCREEN_HEIGHT / 6, SCREEN_WIDTH * 2 / 3, SCREEN_HEIGHT * 2 / 3 };
+				//SDL_SetRenderDrawColor(gRenderer, 0x00, 0xFF, 0x00, 0xFF);
+				//SDL_RenderDrawRect(gRenderer, &outlineRect);
+
+				////Draw blue horizontal line
+				//SDL_SetRenderDrawColor(gRenderer, 0x00, 0x00, 0xFF, 0xFF);
+				//SDL_RenderDrawLine(gRenderer, 0, SCREEN_HEIGHT / 2, SCREEN_WIDTH, SCREEN_HEIGHT / 2);
+
+				////Draw vertical line of yellow dots
+				//SDL_SetRenderDrawColor(gRenderer, 0xFF, 0xFF, 0x00, 0xFF);
+				//for (int i = 0; i < SCREEN_HEIGHT; i += 4) 
+				//{
+				//	SDL_RenderDrawPoint(gRenderer, SCREEN_WIDTH / 2, i);
+				//}
+
+				///*************VIEWPORTS**************/
+				////Top left corner viewport
+				//SDL_Rect topLeftViewport;
+				//topLeftViewport.x = 0;
+				//topLeftViewport.y = 0;
+				//topLeftViewport.w = SCREEN_WIDTH / 2;
+				//topLeftViewport.h = SCREEN_HEIGHT / 2;
+				//SDL_RenderSetViewport(gRenderer, &topLeftViewport);
+
+				//SDL_RenderCopy(gRenderer, gTexture, NULL, NULL);
+
+				////Top right corner viewport
+				//SDL_Rect topRightViewport;
+				//topRightViewport.x = SCREEN_WIDTH / 2;
+				//topRightViewport.y = 0;
+				//topRightViewport.w = SCREEN_WIDTH / 2;
+				//topRightViewport.h = SCREEN_HEIGHT / 2;
+				//SDL_RenderSetViewport(gRenderer, &topRightViewport);
+
+				//SDL_RenderCopy(gRenderer, gTexture, NULL, NULL);
+
+				////Bottom viewport
+				//SDL_Rect bottomViewport;
+				//bottomViewport.x = 0;
+				//bottomViewport.y = SCREEN_HEIGHT / 2;
+				//bottomViewport.w = SCREEN_WIDTH;
+				//bottomViewport.h = SCREEN_HEIGHT / 2;
+				//SDL_RenderSetViewport(gRenderer, &bottomViewport);
+
+				////Render texture to screen
+				//SDL_RenderCopy(gRenderer, gTexture, NULL, NULL);
+
+				////Render background texture 
+				//gBackgroundTexture.render(0, 0);
+
+				////Render Foo to the screen
+				//gFooTexture.render(240, 190);
+
+				//Render top left sprite
+				gSpriteSheetTexture.render(0, 0, &gSpriteClips[0]);
+
+				//Render top right sprite
+				gSpriteSheetTexture.render(SCREEN_WIDTH - gSpriteClips[1].w, 0, &gSpriteClips[1]);
+
+				//Render bottom left sprite
+				gSpriteSheetTexture.render(0, SCREEN_HEIGHT - gSpriteClips[2].h, &gSpriteClips[2]);
+
+				//Render center sprite
+				gSpriteSheetTexture.render(SCREEN_WIDTH / 2 - gSpriteClips[3].w / 2, SCREEN_HEIGHT / 2 - gSpriteClips[3].w / 2, &gSpriteClips[3]);
+
 
 				//Update screen
 				SDL_RenderPresent(gRenderer);
