@@ -95,7 +95,7 @@ public:
 	void setAlpha(Uint8 alpha);
 
 	//Renders texture at given point
-	void render(int x, int y, SDL_Rect* clip = NULL);
+	void render(int x, int y, SDL_Rect* clip = NULL, double angle = 0.0, SDL_Point* center = NULL, SDL_RendererFlip flip = SDL_FLIP_NONE);
 
 	//Gets image dimensions
 	int getWidth();
@@ -114,6 +114,7 @@ private:
 LTexture gFooTexture;
 LTexture gBackgroundTexture;
 LTexture gModulatedTexture;
+LTexture gArrowTexture;
 
 LTexture::LTexture()
 {
@@ -147,7 +148,7 @@ void LTexture::setColor(Uint8 red, Uint8 green, Uint8 blue)
 	SDL_SetTextureColorMod(mTexture, red, green, blue);
 }
 
-void LTexture::render(int x, int y, SDL_Rect* clip)
+void LTexture::render(int x, int y, SDL_Rect* clip, double angle, SDL_Point* center, SDL_RendererFlip flip)
 {
 	//Set rendering space and render to screen
 	SDL_Rect renderQuaad = { x, y, mWidth, mHeight };
@@ -160,7 +161,7 @@ void LTexture::render(int x, int y, SDL_Rect* clip)
 	}
 
 	//Render to screen
-	SDL_RenderCopy(gRenderer, mTexture, clip, &renderQuaad);
+	SDL_RenderCopyEx(gRenderer, mTexture, clip, &renderQuaad, angle, center, flip);
 }
 
 int LTexture::getWidth()
@@ -185,7 +186,7 @@ bool LTexture::loadFromFile(std::string path)
 	SDL_Surface* loadedSurface = IMG_Load(path.c_str());
 	if (loadedSurface == NULL)
 	{
-		printf("Unable to load image %s\n!, SDL_Image error:", path.c_str(), SDL_GetError());
+		printf("Unable to load image %s\n!, SDL_Image error%s\n:", path.c_str(), SDL_GetError());
 	}
 	else
 	{
@@ -228,8 +229,8 @@ void LTexture::setAlpha(Uint8 alpha)
 
 
 //Scene sprites
-SDL_Rect gSpriteClips[4];
-LTexture gSpriteSheetTexture;
+//SDL_Rect gSpriteClips[4];
+//LTexture gSpriteSheetTexture;
 
 
 
@@ -263,10 +264,28 @@ SDL_Surface* loadSurface(std::string path)
 	return optimizedSurface;
 }
 
+
+
+/********************************/
+/**********ANIMATION*************/
+/********************************/
+
+//Walking animation
+const int WALKING_ANIMATION_FRAMES = 4;
+SDL_Rect gSpriteClips[WALKING_ANIMATION_FRAMES];
+LTexture gSpriteSheetTexture;
+Uint32 startTime;
+int animationRate = 10;
+
+
+
+
 bool init()
 {
 	//Initialization flag
 	bool success = true;
+
+	startTime = SDL_GetTicks64();
 
 	//Initialize SDL
 	if (SDL_Init(SDL_INIT_VIDEO) < 0)
@@ -285,8 +304,8 @@ bool init()
 		}
 		else
 		{
-			//Create renderer for window
-			gRenderer = SDL_CreateRenderer(gWindow, -1, SDL_RENDERER_ACCELERATED);
+			//Create VSYNCED renderer for window
+			gRenderer = SDL_CreateRenderer(gWindow, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 			if (gRenderer == NULL)
 			{
 				printf("Rendere could not be created! SDL Error: %s\n", SDL_GetError());
@@ -445,21 +464,57 @@ bool loadMedia()
 
 
 	//Load front alpha texture
-	if (!gModulatedTexture.loadFromFile("assets/images/fadeout.png"))
+	//if (!gModulatedTexture.loadFromFile("assets/images/fadeout.png"))
+	//{
+	//	printf("Failed to load front texture!\n");
+	//	success = false;
+	//}
+	//else
+	//{
+	//	//Set standard alpha blending
+	//	gModulatedTexture.setBlendMode(SDL_BLENDMODE_BLEND);
+	//}
+
+	////Load background texture
+	//if (!gBackgroundTexture.loadFromFile("assets/images/fadein.png"))
+	//{
+	//	printf("Failed to load background texture!\n");
+	//	success = false;
+	//}
+
+	//Load sprite sheet texture
+	if (!gSpriteSheetTexture.loadFromFile("assets/images/foo.png"))
 	{
-		printf("Failed to load front texture!\n");
+		printf("Failed to laod walking animation texture!\n");
 		success = false;
 	}
 	else
 	{
-		//Set standard alpha blending
-		gModulatedTexture.setBlendMode(SDL_BLENDMODE_BLEND);
+		//Set sprite clips
+		gSpriteClips[0].x = 0;
+		gSpriteClips[0].y = 0;
+		gSpriteClips[0].w = 64;
+		gSpriteClips[0].h = 205;
+
+		gSpriteClips[1].x = 64;
+		gSpriteClips[1].y = 0;
+		gSpriteClips[1].w = 64;
+		gSpriteClips[1].h = 205;
+
+		gSpriteClips[2].x = 128;
+		gSpriteClips[2].y = 0;
+		gSpriteClips[2].w = 64;
+		gSpriteClips[2].h = 205;
+
+		gSpriteClips[3].x = 192;
+		gSpriteClips[3].y = 0;
+		gSpriteClips[3].w = 64;
+		gSpriteClips[3].h = 205;
 	}
 
-	//Load background texture
-	if (!gBackgroundTexture.loadFromFile("assets/images/fadein.png"))
+	if (!gArrowTexture.loadFromFile("assets/images/arrow.png"))
 	{
-		printf("Failed to load background texture!\n");
+		printf("Failed to laod arrow image!\n");
 		success = false;
 	}
 
@@ -505,11 +560,11 @@ int main(int argc, char* args[])
 		}
 		else
 		{
-			
+
 
 			//Hack to get window to stay up
-			SDL_Event e; 
-			bool quit = false; 
+			SDL_Event e;
+			bool quit = false;
 
 			//Set default current surface
 			//gCurrentSurface = gKeyPressSurfaces[KEY_PRESS_SURFACE_DEFAULT];
@@ -520,11 +575,20 @@ int main(int argc, char* args[])
 			Uint8 b = 255;
 			Uint8 a = 255;
 
+			//Current animation frame
+			int frame = 0;
+
+			//Angle of rotation
+			double degrees = 0;
+
+			//Flip type 
+			SDL_RendererFlip flipType = SDL_FLIP_NONE;
+
 			//Game Loop
-			while (quit == false) 
-			{ 
-				while (SDL_PollEvent(&e)) 
-				{ 
+			while (quit == false)
+			{
+				while (SDL_PollEvent(&e))
+				{
 					if (e.type == SDL_QUIT)
 					{
 						quit = true;
@@ -533,33 +597,56 @@ int main(int argc, char* args[])
 					//User presses a key
 					else if (e.type == SDL_KEYDOWN)
 					{
-						if (e.key.keysym.sym == SDLK_w)
+						switch (e.key.keysym.sym)
 						{
-							//Cap if over 255
-							if (a + 32 > 255)
-							{
-								a = 255;
-							}
-							//Increment otherwise
-							else
-							{
-								a += 32;
-							}
+						case SDLK_a:
+							degrees -= 60;
+							break;
+
+						case SDLK_d:
+							degrees += 60;
+							break;
+
+						case SDLK_q:
+							flipType = SDL_FLIP_HORIZONTAL;
+							break;
+
+						case SDLK_w:
+							flipType = SDL_FLIP_NONE;
+							break;
+
+						case SDLK_e:
+							flipType = SDL_FLIP_VERTICAL;
+							break;
 						}
-						//Decrease alpha on s
-						else if (e.key.keysym.sym == SDLK_s)
-						{
-							//Cap if below 0
-							if (a - 32 < 0)
-							{
-								a = 0;
-							}
-							//Decrement otherwise
-							else
-							{
-								a -= 32;
-							}
-						}
+
+						//if (e.key.keysym.sym == SDLK_w)
+						//{
+						//	//Cap if over 255
+						//	if (a + 32 > 255)
+						//	{
+						//		a = 255;
+						//	}
+						//	//Increment otherwise
+						//	else
+						//	{
+						//		a += 32;
+						//	}
+						//}
+						////Decrease alpha on s
+						//else if (e.key.keysym.sym == SDLK_s)
+						//{
+						//	//Cap if below 0
+						//	if (a - 32 < 0)
+						//	{
+						//		a = 0;
+						//	}
+						//	//Decrement otherwise
+						//	else
+						//	{
+						//		a -= 32;
+						//	}
+						//}
 
 						//switch (e.key.keysym.sym)
 						//{
@@ -582,7 +669,7 @@ int main(int argc, char* args[])
 
 						//		//Increase alpha on w
 						//	
-	
+
 						//	////Increase red
 						//	//case SDLK_q:
 						//	//	r += 32;
@@ -600,6 +687,7 @@ int main(int argc, char* args[])
 						//	//	//Decrease red
 						//	//case SDLK_a:
 						//	//	r -= 32;
+						//	//	r -= 32;
 						//	//	break;
 
 						//	//	//Decrease green
@@ -616,9 +704,9 @@ int main(int argc, char* args[])
 						//	//	gCurrentSurface = gKeyPressSurfaces[KEY_PRESS_SURFACE_DEFAULT];
 						//	//	break;
 						//}
-						
+
 					}
-				} 
+				}
 
 				//Clear screen
 				SDL_SetRenderDrawColor(gRenderer, 0xFF, 0xFF, 0xFF, 0xFF);
@@ -704,15 +792,28 @@ int main(int argc, char* args[])
 				gModulatedTexture.setColor(r, g, b);
 				gModulatedTexture.render(0, 0);*/
 
-				//Render background
-				gBackgroundTexture.render(0, 0);
+				////Render background
+				//gBackgroundTexture.render(0, 0);
 
-				//Render front blended
-				gModulatedTexture.setAlpha(a);
-				gModulatedTexture.render(0, 0);
+				////Render front blended
+				//gModulatedTexture.setAlpha(a);
+				//gModulatedTexture.render(0, 0);
 
-				//Update screen
-				SDL_RenderPresent(gRenderer);
+
+				////Render current frame
+				//SDL_Rect* currentClip = &gSpriteClips[frame];
+				//gSpriteSheetTexture.render((SCREEN_WIDTH - currentClip->w) / 2, (SCREEN_HEIGHT - currentClip->h) / 2, currentClip);
+
+				
+
+				////Go to next frame
+				//frame = ((SDL_GetTicks64() - startTime) * animationRate / 1000) % 4;
+
+				////Cycle animation
+				//if (frame / 4 >= WALKING_ANIMATION_FRAMES)
+				//{
+				//	frame = 0;
+				//}
 
 				//Apply the image 
 				//SDL_BlitSurface(gCurrentSurface, NULL, gScreenSurface, NULL);
@@ -726,8 +827,16 @@ int main(int argc, char* args[])
 				SDL_BlitScaled(gStretchedSurface, NULL, gScreenSurface, &stretchRect);
 				*/
 
+				//Render arrow
+				gArrowTexture.render((SCREEN_WIDTH - gArrowTexture.getWidth()) / 2, (SCREEN_HEIGHT - gArrowTexture.getHeight()) / 2, NULL, degrees, NULL, flipType);
+
+
 				//Update the surface
 				//SDL_UpdateWindowSurface(gWindow);
+				
+				//Update screen
+				SDL_RenderPresent(gRenderer);
+
 
 				
 			}
