@@ -9,14 +9,12 @@ and may not be redistributed without written permission.*/
 #include <stdio.h>
 #include <string>
 
+/* Constants */
+
 //Screen dimension constants
 const int SCREEN_WIDTH = 640;
 const int SCREEN_HEIGHT = 480;
 
-/* Constants */
-//Screen dimension constants
-constexpr int kScreenWidth{ 640 };
-constexpr int kScreenHeight{ 480 };
 
 //Key press surfaces constants
 //Default to start counting at 0 and go up by one for each enumeration declared
@@ -87,6 +85,15 @@ public:
 	//Deallocates texture
 	void free();
 
+	//Set color modulation
+	void setColor(Uint8 red, Uint8 green, Uint8 blue);
+
+	//Set blending
+	void setBlendMode(SDL_BlendMode blending);
+
+	//Set alpha modulation
+	void setAlpha(Uint8 alpha);
+
 	//Renders texture at given point
 	void render(int x, int y, SDL_Rect* clip = NULL);
 
@@ -106,6 +113,7 @@ private:
 //Scene textures
 LTexture gFooTexture;
 LTexture gBackgroundTexture;
+LTexture gModulatedTexture;
 
 LTexture::LTexture()
 {
@@ -131,6 +139,12 @@ void LTexture::free()
 		mWidth = 0;
 		mHeight = 0;
 	}
+}
+
+void LTexture::setColor(Uint8 red, Uint8 green, Uint8 blue)
+{
+	//Modulate texture
+	SDL_SetTextureColorMod(mTexture, red, green, blue);
 }
 
 void LTexture::render(int x, int y, SDL_Rect* clip)
@@ -198,6 +212,18 @@ bool LTexture::loadFromFile(std::string path)
 	//Return success
 	mTexture = newTexture;
 	return mTexture != NULL;
+}
+
+void LTexture::setBlendMode(SDL_BlendMode blending)
+{
+	//Set blending function
+	SDL_SetTextureBlendMode(mTexture, blending);
+}
+
+void LTexture::setAlpha(Uint8 alpha)
+{
+	//Module texture alpha
+	SDL_SetTextureAlphaMod(mTexture, alpha);
 }
 
 
@@ -296,7 +322,7 @@ SDL_Texture* loadTexture(std::string path) {
 	SDL_Surface* loadedSurface = IMG_Load(path.c_str());
 	if (loadedSurface == NULL)
 	{
-		printf("Unable to load image %s\n!, SDL_Image error:", path.c_str(), SDL_GetError());
+		printf("Unable to load image %s\n!, SDL_Image error:%s\n", path.c_str(), SDL_GetError());
 	}
 	else
 	{
@@ -385,38 +411,57 @@ bool loadMedia()
 	//}
 
 	//Load sprite sheet texture
-	if (!gSpriteSheetTexture.loadFromFile("assets/images/dots.png"))
+	//if (!gSpriteSheetTexture.loadFromFile("assets/images/dots.png"))
+	//{
+	//	printf("Failed to load sprite sheet texture!\n");
+	//	success = false;
+	//}
+	//else
+	//{
+	//	//Set top left sprite
+	//	gSpriteClips[0].x = 0;
+	//	gSpriteClips[0].y = 0;
+	//	gSpriteClips[0].w = 100;
+	//	gSpriteClips[0].h = 100;
+
+	//	//Set top right sprite
+	//	gSpriteClips[1].x = 100;
+	//	gSpriteClips[1].y = 0;
+	//	gSpriteClips[1].w = 100;
+	//	gSpriteClips[1].h = 100;
+
+	//	//Set bottom left sprite
+	//	gSpriteClips[2].x = 0;
+	//	gSpriteClips[2].y = 100;
+	//	gSpriteClips[2].w = 100;
+	//	gSpriteClips[2].h = 100;
+
+	//	//Set bottom right sprite
+	//	gSpriteClips[3].x = 100;
+	//	gSpriteClips[3].y = 100;
+	//	gSpriteClips[3].w = 100;
+	//	gSpriteClips[3].h = 100;
+	//}
+
+
+	//Load front alpha texture
+	if (!gModulatedTexture.loadFromFile("assets/images/fadeout.png"))
 	{
-		printf("Failed to load sprite sheet texture!\n");
+		printf("Failed to load front texture!\n");
 		success = false;
 	}
 	else
 	{
-		//Set top left sprite
-		gSpriteClips[0].x = 0;
-		gSpriteClips[0].y = 0;
-		gSpriteClips[0].w = 100;
-		gSpriteClips[0].h = 100;
-
-		//Set top right sprite
-		gSpriteClips[1].x = 100;
-		gSpriteClips[1].y = 0;
-		gSpriteClips[1].w = 100;
-		gSpriteClips[1].h = 100;
-
-		//Set bottom left sprite
-		gSpriteClips[2].x = 0;
-		gSpriteClips[2].y = 100;
-		gSpriteClips[2].w = 100;
-		gSpriteClips[2].h = 100;
-
-		//Set bottom right sprite
-		gSpriteClips[3].x = 100;
-		gSpriteClips[3].y = 100;
-		gSpriteClips[3].w = 100;
-		gSpriteClips[3].h = 100;
+		//Set standard alpha blending
+		gModulatedTexture.setBlendMode(SDL_BLENDMODE_BLEND);
 	}
 
+	//Load background texture
+	if (!gBackgroundTexture.loadFromFile("assets/images/fadein.png"))
+	{
+		printf("Failed to load background texture!\n");
+		success = false;
+	}
 
 	return success;
 }
@@ -467,7 +512,13 @@ int main(int argc, char* args[])
 			bool quit = false; 
 
 			//Set default current surface
-			gCurrentSurface = gKeyPressSurfaces[KEY_PRESS_SURFACE_DEFAULT];
+			//gCurrentSurface = gKeyPressSurfaces[KEY_PRESS_SURFACE_DEFAULT];
+
+			//Modulation components
+			Uint8 r = 255;
+			Uint8 g = 255;
+			Uint8 b = 255;
+			Uint8 a = 255;
 
 			//Game Loop
 			while (quit == false) 
@@ -482,29 +533,89 @@ int main(int argc, char* args[])
 					//User presses a key
 					else if (e.type == SDL_KEYDOWN)
 					{
-						switch (e.key.keysym.sym)
+						if (e.key.keysym.sym == SDLK_w)
 						{
-							//Select surfaces based on key press
-							case SDLK_UP:
-								gCurrentSurface = gKeyPressSurfaces[KEY_PRESS_SURFACE_UP];
-								break;
-
-							case SDLK_DOWN:
-								gCurrentSurface = gKeyPressSurfaces[KEY_PRESS_SURFACE_DOWN];
-								break;
-
-							case SDLK_LEFT:
-								gCurrentSurface = gKeyPressSurfaces[KEY_PRESS_SURFACE_LEFT];
-								break;
-
-							case SDLK_RIGHT:
-								gCurrentSurface = gKeyPressSurfaces[KEY_PRESS_SURFACE_RIGHT];
-								break;
-
-							default:
-								gCurrentSurface = gKeyPressSurfaces[KEY_PRESS_SURFACE_DEFAULT];
-								break;
+							//Cap if over 255
+							if (a + 32 > 255)
+							{
+								a = 255;
+							}
+							//Increment otherwise
+							else
+							{
+								a += 32;
+							}
 						}
+						//Decrease alpha on s
+						else if (e.key.keysym.sym == SDLK_s)
+						{
+							//Cap if below 0
+							if (a - 32 < 0)
+							{
+								a = 0;
+							}
+							//Decrement otherwise
+							else
+							{
+								a -= 32;
+							}
+						}
+
+						//switch (e.key.keysym.sym)
+						//{
+						//	//Select surfaces based on key press
+						//	/*case SDLK_UP:
+						//		gCurrentSurface = gKeyPressSurfaces[KEY_PRESS_SURFACE_UP];
+						//		break;
+
+						//	case SDLK_DOWN:
+						//		gCurrentSurface = gKeyPressSurfaces[KEY_PRESS_SURFACE_DOWN];
+						//		break;
+
+						//	case SDLK_LEFT:
+						//		gCurrentSurface = gKeyPressSurfaces[KEY_PRESS_SURFACE_LEFT];
+						//		break;
+
+						//	case SDLK_RIGHT:
+						//		gCurrentSurface = gKeyPressSurfaces[KEY_PRESS_SURFACE_RIGHT];
+						//		break;*/
+
+						//		//Increase alpha on w
+						//	
+	
+						//	////Increase red
+						//	//case SDLK_q:
+						//	//	r += 32;
+						//	//	break;
+						//	//	//Increase green
+						//	//case SDLK_w:
+						//	//	g += 32;
+						//	//	break;
+
+						//	//	//Increase blue
+						//	//case SDLK_e:
+						//	//	b += 32;
+						//	//	break;
+
+						//	//	//Decrease red
+						//	//case SDLK_a:
+						//	//	r -= 32;
+						//	//	break;
+
+						//	//	//Decrease green
+						//	//case SDLK_s:
+						//	//	g -= 32;
+						//	//	break;
+
+						//	//	//Decrease blue
+						//	//case SDLK_d:
+						//	//	b -= 32;
+						//	//	break;
+
+						//	//default:
+						//	//	gCurrentSurface = gKeyPressSurfaces[KEY_PRESS_SURFACE_DEFAULT];
+						//	//	break;
+						//}
 						
 					}
 				} 
@@ -575,18 +686,30 @@ int main(int argc, char* args[])
 				////Render Foo to the screen
 				//gFooTexture.render(240, 190);
 
-				//Render top left sprite
-				gSpriteSheetTexture.render(0, 0, &gSpriteClips[0]);
+				////Render top left sprite
+				//gSpriteSheetTexture.render(0, 0, &gSpriteClips[0]);
 
-				//Render top right sprite
-				gSpriteSheetTexture.render(SCREEN_WIDTH - gSpriteClips[1].w, 0, &gSpriteClips[1]);
+				////Render top right sprite
+				//gSpriteSheetTexture.render(SCREEN_WIDTH - gSpriteClips[1].w, 0, &gSpriteClips[1]);
 
-				//Render bottom left sprite
-				gSpriteSheetTexture.render(0, SCREEN_HEIGHT - gSpriteClips[2].h, &gSpriteClips[2]);
+				////Render bottom left sprite
+				//gSpriteSheetTexture.render(0, SCREEN_HEIGHT - gSpriteClips[2].h, &gSpriteClips[2]);
 
-				//Render center sprite
-				gSpriteSheetTexture.render(SCREEN_WIDTH / 2 - gSpriteClips[3].w / 2, SCREEN_HEIGHT / 2 - gSpriteClips[3].w / 2, &gSpriteClips[3]);
+				////Render center sprite
+				//gSpriteSheetTexture.render(SCREEN_WIDTH / 2 - gSpriteClips[3].w / 2, SCREEN_HEIGHT / 2 - gSpriteClips[3].w / 2, &gSpriteClips[3]);
 
+
+				//Modulate and render texture
+				/*gModulatedTexture.loadFromFile("assets/images/colors.png");
+				gModulatedTexture.setColor(r, g, b);
+				gModulatedTexture.render(0, 0);*/
+
+				//Render background
+				gBackgroundTexture.render(0, 0);
+
+				//Render front blended
+				gModulatedTexture.setAlpha(a);
+				gModulatedTexture.render(0, 0);
 
 				//Update screen
 				SDL_RenderPresent(gRenderer);
