@@ -6,8 +6,11 @@ and may not be redistributed without written permission.*/
 //Using SDL and standard IO
 #include <SDL.h>
 #include <SDL_image.h>
+#include <SDL_ttf.h>
 #include <stdio.h>
 #include <string>
+
+
 
 /* Constants */
 
@@ -67,6 +70,9 @@ SDL_Renderer* gRenderer = NULL;
 //Current displayed texture
 SDL_Texture* gTexture = NULL;
 
+//Globally used font
+TTF_Font* gFont = NULL;
+
 /************************************/
 
 //Texture wrapper class
@@ -81,6 +87,9 @@ public:
 
 	//Loads image ad specified path
 	bool loadFromFile(std::string path);
+
+	//Creates image from font string
+	bool loadFromRenderedText(std::string textureText, SDL_Color textColor);
 
 	//Deallocates texture
 	void free();
@@ -115,6 +124,9 @@ LTexture gFooTexture;
 LTexture gBackgroundTexture;
 LTexture gModulatedTexture;
 LTexture gArrowTexture;
+
+//Rendered Texture
+LTexture gTextTexture;
 
 LTexture::LTexture()
 {
@@ -227,6 +239,39 @@ void LTexture::setAlpha(Uint8 alpha)
 	SDL_SetTextureAlphaMod(mTexture, alpha);
 }
 
+bool LTexture::loadFromRenderedText(std::string textureText, SDL_Color textColor)
+{
+	//Get rif of preexisting texture
+	free();
+
+	//Render text surface
+	SDL_Surface* textSurface = TTF_RenderText_Solid(gFont, textureText.c_str(), textColor);
+	if (textSurface == NULL)
+	{
+		printf("Unable to render text surface! SDL_ttf Error: %s\n", TTF_GetError());
+	}
+	else
+	{
+		//Create texture from surface pixels
+		mTexture = SDL_CreateTextureFromSurface(gRenderer, textSurface);
+		if (mTexture == NULL)
+		{
+			printf("Unable to create texture from rendered text!SDL Error : % s\n", SDL_GetError());
+		}
+		else
+		{
+			//Get Image dimesnions
+			mWidth = textSurface->w;
+			mHeight = textSurface->h;
+		}
+
+		//Get rid opf old surface
+		SDL_FreeSurface(textSurface);
+	}
+
+	//Retyurn success
+	return mTexture != NULL;
+}
 
 //Scene sprites
 //SDL_Rect gSpriteClips[4];
@@ -319,6 +364,12 @@ bool init()
 				if (!(IMG_Init(imgFlags) & imgFlags))
 				{
 					printf("SDL_image could not initialize! SDL_Image Error:%s\n", IMG_GetError());
+					success = false;
+				}
+
+				if (TTF_Init() == -1)
+				{
+					printf("SDL_ttf could not initialize! SDL_ttf Error:%s\n", TTF_GetError());
 					success = false;
 				}
 				else
@@ -518,6 +569,23 @@ bool loadMedia()
 		success = false;
 	}
 
+	//Open the font
+	gFont = TTF_OpenFont("assets/fonts/lazy.ttf", 28);
+	if (gFont == NULL)
+	{
+		printf("Failed to load lazy font! SDL_ttf Error: %s\n", TTF_GetError());
+		success = false;
+	}
+	else
+	{
+		//Render text
+		SDL_Color textColor = { 0, 0, 0, 0 };
+		if (!gTextTexture.loadFromRenderedText("The quick brown fox jumps over the lazy dog", textColor))
+		{
+			printf("Failed to render text texture!\n");
+			success = false;
+		}
+	}
 	return success;
 }
 
@@ -543,6 +611,7 @@ void close()
 	//Quit SDL subsystems
 	IMG_Quit();
 	SDL_Quit();
+	TTF_Quit();
 }
 
 int main(int argc, char* args[])
@@ -828,8 +897,10 @@ int main(int argc, char* args[])
 				*/
 
 				//Render arrow
-				gArrowTexture.render((SCREEN_WIDTH - gArrowTexture.getWidth()) / 2, (SCREEN_HEIGHT - gArrowTexture.getHeight()) / 2, NULL, degrees, NULL, flipType);
+				//gArrowTexture.render((SCREEN_WIDTH - gArrowTexture.getWidth()) / 2, (SCREEN_HEIGHT - gArrowTexture.getHeight()) / 2, NULL, degrees, NULL, flipType);
 
+				//Render current frame
+				gTextTexture.render((SCREEN_WIDTH - gTextTexture.getWidth()) / 2, (SCREEN_HEIGHT - gTextTexture.getHeight()) / 2);
 
 				//Update the surface
 				//SDL_UpdateWindowSurface(gWindow);
