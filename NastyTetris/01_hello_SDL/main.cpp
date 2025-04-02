@@ -73,7 +73,26 @@ SDL_Texture* gTexture = NULL;
 //Globally used font
 TTF_Font* gFont = NULL;
 
+
+
 /************************************/
+
+//Button constants
+const int BUTTON_WIDTH = 300;
+const int BUTTON_HEIGHT = 200;
+const int TOTAL_BUTTONS = 4;
+
+enum LButtonSprite
+{
+	BUTTON_SPRITE_MOUSE_OUT = 0,
+	BUTTON_SPRITE_MOUSE_OVER_MOTION = 1,
+	BUTTON_SPRITE_MOUSE_DOWN = 2,
+	BUTTON_SPRITE_MOUSE_UP = 3,
+	BUTTON_SPRITE_TOTAL = 4
+};
+
+//Mouse button sprites
+SDL_Rect gSpriteClips[BUTTON_SPRITE_TOTAL];
 
 //Texture wrapper class
 class LTexture
@@ -89,7 +108,9 @@ public:
 	bool loadFromFile(std::string path);
 
 	//Creates image from font string
+#if defined(SDL_TTF_MAJOR_VERSION)
 	bool loadFromRenderedText(std::string textureText, SDL_Color textColor);
+#endif
 
 	//Deallocates texture
 	void free();
@@ -118,6 +139,31 @@ private:
 	int mWidth;
 	int mHeight;
 };
+
+//The mouse button
+class LButton
+{
+public:
+	//Initializes internal variables
+	LButton();
+	
+	//Sets top left position
+	void setPosition(int x, int y);
+
+	//Handles mouse event
+	void handleEvent(SDL_Event* e);
+
+	//Shows button sprite
+	void render();
+private:
+	//Top left position
+	SDL_Point mPosition;
+
+	//Currently used global sprite
+	LButtonSprite mCurrentSprite;
+};
+
+
 
 //Scene textures
 LTexture gFooTexture;
@@ -239,6 +285,7 @@ void LTexture::setAlpha(Uint8 alpha)
 	SDL_SetTextureAlphaMod(mTexture, alpha);
 }
 
+#if defined(SDL_TTF_MAJOR_VERSION)
 bool LTexture::loadFromRenderedText(std::string textureText, SDL_Color textColor)
 {
 	//Get rif of preexisting texture
@@ -271,6 +318,89 @@ bool LTexture::loadFromRenderedText(std::string textureText, SDL_Color textColor
 
 	//Retyurn success
 	return mTexture != NULL;
+}
+#endif
+
+LButton::LButton()
+{
+	mPosition.x = 0;
+	mPosition.y = 0;
+
+	mCurrentSprite = BUTTON_SPRITE_MOUSE_OUT;
+}
+
+void LButton::setPosition(int x, int y)
+{
+	mPosition.x = x;
+	mPosition.y = y;
+}
+
+void LButton::handleEvent(SDL_Event* e)
+{
+	//If mouse event happened
+	if (e->type == SDL_MOUSEMOTION || e->type == SDL_MOUSEBUTTONDOWN || e->type == SDL_MOUSEBUTTONUP)
+	{
+		//Get mouse position
+		int x, y;
+		SDL_GetMouseState(&x, &y);
+
+		//Check if mouse is in button
+		bool inside = true;
+
+		//Mouse is left of the button
+		if (x < mPosition.x)
+		{
+			inside = false;
+		}
+		//Mouse is right of the button
+		else if (x > mPosition.x + BUTTON_WIDTH)
+		{
+			inside = false;
+		}
+		//Mouse above the button
+		else if (y < mPosition.y)
+		{
+			inside = false;
+		}
+		else if (y > mPosition.y + BUTTON_HEIGHT)
+		{
+			inside = false;
+		}
+
+		//Mouse is outside button
+		if (!inside)
+		{
+			mCurrentSprite = BUTTON_SPRITE_MOUSE_OUT;
+		}
+		//Mouse inside button
+		else
+		{
+			//Set mouse over sprite
+			switch (e->type)
+			{
+			case SDL_MOUSEMOTION:
+				mCurrentSprite = BUTTON_SPRITE_MOUSE_OVER_MOTION;
+				break;
+
+			case SDL_MOUSEBUTTONDOWN:
+				mCurrentSprite = BUTTON_SPRITE_MOUSE_DOWN;
+				break;
+
+			case SDL_MOUSEBUTTONUP:
+				mCurrentSprite = BUTTON_SPRITE_MOUSE_UP;
+				break;
+			}
+		}
+	}
+
+}
+
+LTexture gButtonSpriteSheetTexture;
+
+void LButton::render()
+{
+	//Show current button sprite
+	gButtonSpriteSheetTexture.render(mPosition.x, mPosition.y, &gSpriteClips[mCurrentSprite]);
 }
 
 //Scene sprites
@@ -317,8 +447,9 @@ SDL_Surface* loadSurface(std::string path)
 
 //Walking animation
 const int WALKING_ANIMATION_FRAMES = 4;
-SDL_Rect gSpriteClips[WALKING_ANIMATION_FRAMES];
+//SDL_Rect gSpriteClips[WALKING_ANIMATION_FRAMES];
 LTexture gSpriteSheetTexture;
+LButton gButtons[TOTAL_BUTTONS];
 Uint32 startTime;
 int animationRate = 10;
 
@@ -534,57 +665,79 @@ bool loadMedia()
 	//}
 
 	//Load sprite sheet texture
-	if (!gSpriteSheetTexture.loadFromFile("assets/images/foo.png"))
+	//if (!gSpriteSheetTexture.loadFromFile("assets/images/foo.png"))
+	//{
+	//	printf("Failed to laod walking animation texture!\n");
+	//	success = false;
+	//}
+	//else
+	//{
+	//	//Set sprite clips
+	//	gSpriteClips[0].x = 0;
+	//	gSpriteClips[0].y = 0;
+	//	gSpriteClips[0].w = 64;
+	//	gSpriteClips[0].h = 205;
+
+	//	gSpriteClips[1].x = 64;
+	//	gSpriteClips[1].y = 0;
+	//	gSpriteClips[1].w = 64;
+	//	gSpriteClips[1].h = 205;
+
+	//	gSpriteClips[2].x = 128;
+	//	gSpriteClips[2].y = 0;
+	//	gSpriteClips[2].w = 64;
+	//	gSpriteClips[2].h = 205;
+
+	//	gSpriteClips[3].x = 192;
+	//	gSpriteClips[3].y = 0;
+	//	gSpriteClips[3].w = 64;
+	//	gSpriteClips[3].h = 205;
+	//}
+
+	//if (!gArrowTexture.loadFromFile("assets/images/arrow.png"))
+	//{
+	//	printf("Failed to laod arrow image!\n");
+	//	success = false;
+	//}
+
+	////Open the font
+	//gFont = TTF_OpenFont("assets/fonts/lazy.ttf", 28);
+	//if (gFont == NULL)
+	//{
+	//	printf("Failed to load lazy font! SDL_ttf Error: %s\n", TTF_GetError());
+	//	success = false;
+	//}
+	//else
+	//{
+	//	//Render text
+	//	SDL_Color textColor = { 0, 0, 0, 0 };
+	//	if (!gTextTexture.loadFromRenderedText("The quick brown fox jumps over the lazy dog", textColor))
+	//	{
+	//		printf("Failed to render text texture!\n");
+	//		success = false;
+	//	}
+	//}
+	if (!gButtonSpriteSheetTexture.loadFromFile("assets/images/button.png"))
 	{
-		printf("Failed to laod walking animation texture!\n");
+		printf("Failed to load button sprite texture!\n");
 		success = false;
 	}
 	else
 	{
-		//Set sprite clips
-		gSpriteClips[0].x = 0;
-		gSpriteClips[0].y = 0;
-		gSpriteClips[0].w = 64;
-		gSpriteClips[0].h = 205;
-
-		gSpriteClips[1].x = 64;
-		gSpriteClips[1].y = 0;
-		gSpriteClips[1].w = 64;
-		gSpriteClips[1].h = 205;
-
-		gSpriteClips[2].x = 128;
-		gSpriteClips[2].y = 0;
-		gSpriteClips[2].w = 64;
-		gSpriteClips[2].h = 205;
-
-		gSpriteClips[3].x = 192;
-		gSpriteClips[3].y = 0;
-		gSpriteClips[3].w = 64;
-		gSpriteClips[3].h = 205;
-	}
-
-	if (!gArrowTexture.loadFromFile("assets/images/arrow.png"))
-	{
-		printf("Failed to laod arrow image!\n");
-		success = false;
-	}
-
-	//Open the font
-	gFont = TTF_OpenFont("assets/fonts/lazy.ttf", 28);
-	if (gFont == NULL)
-	{
-		printf("Failed to load lazy font! SDL_ttf Error: %s\n", TTF_GetError());
-		success = false;
-	}
-	else
-	{
-		//Render text
-		SDL_Color textColor = { 0, 0, 0, 0 };
-		if (!gTextTexture.loadFromRenderedText("The quick brown fox jumps over the lazy dog", textColor))
+		//Set sprites
+		for (int i = 0; i < BUTTON_SPRITE_TOTAL; ++i)
 		{
-			printf("Failed to render text texture!\n");
-			success = false;
+			gSpriteClips[i].x = 0;
+			gSpriteClips[i].y = i * 200;
+			gSpriteClips[i].w = BUTTON_WIDTH;
+			gSpriteClips[i].h = BUTTON_HEIGHT;
 		}
+
+		//Set buttons in corners
+		gButtons[0].setPosition(0, 0);
+		gButtons[1].setPosition(SCREEN_WIDTH - BUTTON_WIDTH, 0);
+		gButtons[2].setPosition(0, SCREEN_HEIGHT - BUTTON_HEIGHT);
+		gButtons[3].setPosition(SCREEN_WIDTH - BUTTON_WIDTH, SCREEN_HEIGHT - BUTTON_HEIGHT);
 	}
 	return success;
 }
@@ -775,6 +928,13 @@ int main(int argc, char* args[])
 						//}
 
 					}
+					else
+					{
+						for (int i = 0; i < TOTAL_BUTTONS; i++)
+						{
+							gButtons[i].handleEvent(&e);
+						}
+					}
 				}
 
 				//Clear screen
@@ -900,10 +1060,16 @@ int main(int argc, char* args[])
 				//gArrowTexture.render((SCREEN_WIDTH - gArrowTexture.getWidth()) / 2, (SCREEN_HEIGHT - gArrowTexture.getHeight()) / 2, NULL, degrees, NULL, flipType);
 
 				//Render current frame
-				gTextTexture.render((SCREEN_WIDTH - gTextTexture.getWidth()) / 2, (SCREEN_HEIGHT - gTextTexture.getHeight()) / 2);
+				//gTextTexture.render((SCREEN_WIDTH - gTextTexture.getWidth()) / 2, (SCREEN_HEIGHT - gTextTexture.getHeight()) / 2);
 
 				//Update the surface
 				//SDL_UpdateWindowSurface(gWindow);
+
+				//Render buttons
+				for (int i = 0; i < TOTAL_BUTTONS; ++i)
+				{
+					gButtons[i].render();
+				}
 				
 				//Update screen
 				SDL_RenderPresent(gRenderer);
