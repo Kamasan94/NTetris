@@ -173,6 +173,7 @@ LTexture gArrowTexture;
 
 //Rendered Texture
 LTexture gTextTexture;
+LTexture* gMenuTextures[2];
 
 LTexture::LTexture()
 {
@@ -767,6 +768,42 @@ void close()
 	TTF_Quit();
 }
 
+
+bool loadMenu()
+{
+	//Loading success flag
+	bool success = true;
+	int menuEntriesSize = 2;
+	std::string menuEntries[2] = {
+		"Hello SDL\n",
+		"Getting an Image on the Screen\n"
+	};
+
+	//Open the font
+	gFont = TTF_OpenFont("assets/fonts/lazy.ttf", 28);
+	if (gFont == NULL)
+	{
+		printf("Failed to load lazy font! SDL_ttf Error: %s\n", TTF_GetError());
+		success = false;
+	}
+	else
+	{
+		//Render text
+		SDL_Color textColor = { 138, 138, 138};
+		for (int i = 0; i < menuEntriesSize; i++)
+		{
+			gMenuTextures[i] = new LTexture();
+			if (!gMenuTextures[i]->loadFromRenderedText(menuEntries[i], textColor))
+			{
+				printf("Failed to render text texture!\n");
+				success = false;
+			}
+		}		
+	}
+
+	return success;
+}
+
 int main(int argc, char* args[])
 {
 	if (!init())
@@ -776,9 +813,13 @@ int main(int argc, char* args[])
 	else
 	{
 		//Load Media
-		if (!loadMedia())
+		//if (!loadMedia())
+		//{
+		//	printf("Failed to load media!\n");
+		//}
+		if (!loadMenu())
 		{
-			printf("Failed to load media!\n");
+			printf("Failed to load menu!\n");
 		}
 		else
 		{
@@ -806,6 +847,10 @@ int main(int argc, char* args[])
 			//Flip type 
 			SDL_RendererFlip flipType = SDL_FLIP_NONE;
 
+			//Index of menu selcted
+			int indexSelected = 0;
+			int menuEntriesNumber = 2;
+
 			//Game Loop
 			while (quit == false)
 			{
@@ -819,7 +864,7 @@ int main(int argc, char* args[])
 					//User presses a key
 					else if (e.type == SDL_KEYDOWN)
 					{
-						switch (e.key.keysym.sym)
+						/*switch (e.key.keysym.sym)
 						{
 						case SDLK_a:
 							degrees -= 60;
@@ -840,7 +885,7 @@ int main(int argc, char* args[])
 						case SDLK_e:
 							flipType = SDL_FLIP_VERTICAL;
 							break;
-						}
+						}*/
 
 						//if (e.key.keysym.sym == SDLK_w)
 						//{
@@ -870,24 +915,49 @@ int main(int argc, char* args[])
 						//	}
 						//}
 
-						//switch (e.key.keysym.sym)
-						//{
-						//	//Select surfaces based on key press
-						//	/*case SDLK_UP:
-						//		gCurrentSurface = gKeyPressSurfaces[KEY_PRESS_SURFACE_UP];
-						//		break;
+						switch (e.key.keysym.sym)
+						{
+							//Select surfaces based on key press
+						case SDLK_UP:
+							indexSelected--;
+							break;
 
-						//	case SDLK_DOWN:
-						//		gCurrentSurface = gKeyPressSurfaces[KEY_PRESS_SURFACE_DOWN];
-						//		break;
+						case SDLK_DOWN:
+							indexSelected++;
+							break;
 
-						//	case SDLK_LEFT:
-						//		gCurrentSurface = gKeyPressSurfaces[KEY_PRESS_SURFACE_LEFT];
-						//		break;
+						default:
+							indexSelected = 0;
+							break;
+						}
 
-						//	case SDLK_RIGHT:
-						//		gCurrentSurface = gKeyPressSurfaces[KEY_PRESS_SURFACE_RIGHT];
-						//		break;*/
+						if (indexSelected >= menuEntriesNumber)
+						{
+							indexSelected = 0;
+						}
+						else if (indexSelected < 0)
+						{
+							indexSelected = menuEntriesNumber - 1;
+						}
+
+								//switch (e.key.keysym.sym)
+								//{
+								//	//Select surfaces based on key press
+								//case SDLK_UP:
+								//	gCurrentSurface = gKeyPressSurfaces[KEY_PRESS_SURFACE_UP];
+								//	break;
+
+								//case SDLK_DOWN:
+								//	gCurrentSurface = gKeyPressSurfaces[KEY_PRESS_SURFACE_DOWN];
+								//	break;
+
+								//case SDLK_LEFT:
+								//	gCurrentSurface = gKeyPressSurfaces[KEY_PRESS_SURFACE_LEFT];
+								//	break;
+
+								//case SDLK_RIGHT:
+								//	gCurrentSurface = gKeyPressSurfaces[KEY_PRESS_SURFACE_RIGHT];
+								//	break;
 
 						//		//Increase alpha on w
 						//	
@@ -1066,11 +1136,28 @@ int main(int argc, char* args[])
 				//SDL_UpdateWindowSurface(gWindow);
 
 				//Render buttons
-				for (int i = 0; i < TOTAL_BUTTONS; ++i)
+				/*for (int i = 0; i < TOTAL_BUTTONS; ++i)
 				{
 					gButtons[i].render();
+				}*/
+					
+				
+				//Set the index selected bold
+				gMenuTextures[indexSelected]->setColor(242, 5, 5);
+
+				//Render menu entries
+				for (int i = 0; i < menuEntriesNumber; i++)
+				{
+					if (i != indexSelected)
+					{
+						gMenuTextures[i]->setColor(138, 138, 138);
+					}
+					gMenuTextures[i]->render((SCREEN_WIDTH - gMenuTextures[i]->getWidth()) / 2, (SCREEN_HEIGHT - gMenuTextures[i]->getHeight() + (50*i)) / 2);
 				}
 				
+				
+
+
 				//Update screen
 				SDL_RenderPresent(gRenderer);
 
