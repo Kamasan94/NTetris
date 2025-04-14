@@ -915,9 +915,11 @@ int main(int argc, char* args[])
 						//	}
 						//}
 
+
+						//Menu control
 						switch (e.key.keysym.sym)
 						{
-							//Select surfaces based on key press
+							
 						case SDLK_UP:
 							indexSelected--;
 							break;
@@ -925,12 +927,16 @@ int main(int argc, char* args[])
 						case SDLK_DOWN:
 							indexSelected++;
 							break;
+						case 13:
+							printf("Premuto invio");
+						
 
 						default:
 							indexSelected = 0;
 							break;
 						}
 
+						//Adjust menu index
 						if (indexSelected >= menuEntriesNumber)
 						{
 							indexSelected = 0;
@@ -1143,7 +1149,7 @@ int main(int argc, char* args[])
 					
 				
 				//Set the index selected bold
-				gMenuTextures[indexSelected]->setColor(242, 5, 5);
+				gMenuTextures[indexSelected]->setColor(255, 255, 0);
 
 				//Render menu entries
 				for (int i = 0; i < menuEntriesNumber; i++)
